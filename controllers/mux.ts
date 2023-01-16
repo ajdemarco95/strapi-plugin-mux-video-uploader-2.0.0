@@ -1,18 +1,23 @@
-import axios from 'axios';
-import Mux from '@mux/mux-node';
-import { Context } from 'koa';
+import axios from "axios";
+import Mux from "@mux/mux-node";
+import { Context } from "koa";
 
-import { createAsset, deleteAsset, getAssetIdByUploadId, getDirectUploadUrl } from '../services/mux';
-import { getConfig } from '../services/strapi';
-import pluginId from './../admin/src/pluginId';
+import {
+  createAsset,
+  deleteAsset,
+  getAssetIdByUploadId,
+  getDirectUploadUrl,
+} from "../services/mux";
+import { getConfig } from "../services/strapi";
+import pluginId from "./../admin/src/pluginId";
 
 const { Webhooks } = Mux;
 
 const model = `plugins::${pluginId}.mux-asset`;
 
-const index = async (ctx:Context) => ctx.send({ message: 'ok' });
+const index = async (ctx: Context) => ctx.send({ message: "ok" });
 
-const submitDirectUpload = async (ctx:Context) => {
+const submitDirectUpload = async (ctx: Context) => {
   const data = ctx.request.body;
 
   const result = await getDirectUploadUrl(ctx.request.header.origin);
@@ -24,12 +29,14 @@ const submitDirectUpload = async (ctx:Context) => {
   ctx.send(result);
 };
 
-const submitRemoteUpload = async (ctx:Context) => {
+const submitRemoteUpload = async (ctx: Context) => {
   const data = ctx.request.body;
 
-  if(!data.url) {
-    ctx.badRequest("ValidationError", { errors: { "url": ["url cannot be empty"]}});
-    
+  if (!data.url) {
+    ctx.badRequest("ValidationError", {
+      errors: { url: ["url cannot be empty"] },
+    });
+
     return;
   }
 
@@ -42,11 +49,13 @@ const submitRemoteUpload = async (ctx:Context) => {
   ctx.send(response);
 };
 
-const deleteMuxAsset = async (ctx:Context) => {
+const deleteMuxAsset = async (ctx: Context) => {
   const data = ctx.request.body;
 
-  if(!data.upload_id) {
-    ctx.badRequest("ValidationError", { errors: { "upload_id": ["upload_id needs to be defined"]}});
+  if (!data.upload_id) {
+    ctx.badRequest("ValidationError", {
+      errors: { upload_id: ["upload_id needs to be defined"] },
+    });
 
     return;
   }
@@ -55,8 +64,11 @@ const deleteMuxAsset = async (ctx:Context) => {
 
   const result = { success: true, deletedOnMux: false };
 
-  if(data.delete_on_mux === "true") {
-    const assetId = data.asset_id !== '' ? data.asset_id : await getAssetIdByUploadId(data.upload_id);
+  if (data.delete_on_mux === "true") {
+    const assetId =
+      data.asset_id !== ""
+        ? data.asset_id
+        : await getAssetIdByUploadId(data.upload_id);
 
     const deletedOnMux = await deleteAsset(assetId);
 
@@ -66,26 +78,29 @@ const deleteMuxAsset = async (ctx:Context) => {
   ctx.send(result);
 };
 
-const muxWebhookHandler = async (ctx:Context) => {
+const muxWebhookHandler = async (ctx: Context) => {
   const body = ctx.request.body;
-  const sigHttpHeader = ctx.request.headers['mux-signature'];
+  const sigHttpHeader = ctx.request.headers["mux-signature"];
 
-  const config = await getConfig('general');
+  const config = await getConfig("general");
 
-  if(sigHttpHeader === undefined || sigHttpHeader === '' || (Array.isArray(sigHttpHeader) && sigHttpHeader.length < 0)) {
-    ctx.throw(401, 'Webhook signature is missing');
+  if (
+    sigHttpHeader === undefined ||
+    sigHttpHeader === "" ||
+    (Array.isArray(sigHttpHeader) && sigHttpHeader.length < 0)
+  ) {
+    ctx.throw(401, "Webhook signature is missing");
   }
-  
-  if(Array.isArray(sigHttpHeader) && sigHttpHeader.length > 1) {
-    ctx.throw(401, 'we have an unexpected amount of signatures');
+
+  if (Array.isArray(sigHttpHeader) && sigHttpHeader.length > 1) {
+    ctx.throw(401, "we have an unexpected amount of signatures");
   }
 
   let sig;
 
-  if(Array.isArray(sigHttpHeader)){
+  if (Array.isArray(sigHttpHeader)) {
     sig = sigHttpHeader[0];
-  }
-  else{
+  } else {
     sig = sigHttpHeader;
   }
 
@@ -94,7 +109,7 @@ const muxWebhookHandler = async (ctx:Context) => {
   // Koa.js request (the middleware used for parsing requests).
 
   // let isSigValid;
-  
+
   // try {
   //   isSigValid = Webhooks.verifyHeader(JSON.stringify(body), sig, config.webhook_signing_secret);
   // } catch(err) {
@@ -107,29 +122,29 @@ const muxWebhookHandler = async (ctx:Context) => {
 
   let payload;
 
-  if(type === 'video.upload.asset_created') {
+  if (type === "video.upload.asset_created") {
     payload = {
       params: { upload_id: data.id },
-      data: { asset_id: data.asset_id }
+      data: { asset_id: data.asset_id },
     };
-  } else if(type === 'video.asset.ready') {
+  } else if (type === "video.asset.static_renditions.ready") {
     payload = {
       params: { asset_id: body.data.id },
       data: {
         playback_id: data.playback_ids[0].id,
-        isReady: true
-      }
+        isReady: true,
+      },
     };
-  } else if(type === 'video.asset.errored') {
+  } else if (type === "video.asset.errored") {
     payload = {
       params: { upload_id: data.upload_id },
       data: {
         asset_id: data.id,
-        error_message: `${data.errors.type}: ${data.errors.messages[0] || ''}`
-      }
+        error_message: `${data.errors.type}: ${data.errors.messages[0] || ""}`,
+      },
     };
   } else {
-    ctx.send('ignored');
+    ctx.send("ignored");
 
     return;
   }
@@ -144,5 +159,5 @@ export {
   submitDirectUpload,
   submitRemoteUpload,
   deleteMuxAsset,
-  muxWebhookHandler
+  muxWebhookHandler,
 };
